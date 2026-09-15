@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- SMS Retriever and User Consent need no permissions. -->
+    <application>
+        <!-- Invisible proxy that shows the SMS User Consent prompt. -->
+        <activity
+            android:name=".PinputKitConsentActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+</manifest>

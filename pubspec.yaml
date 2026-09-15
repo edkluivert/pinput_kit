@@ -1,0 +1,46 @@
+name: pinput_kit
+description: >-
+  Pin code / OTP fields for DartNative on the native text field: individual
+  slot boxes, box/underline/circle styles, entry animations, forms_kit
+  integration, tap-to-edit, SMS Retriever autofill on Android and one-time-code
+  keyboard hints on iOS and Android.
+version: 0.1.1
+repository: https://github.com/edkluivert/pinput_kit
+topics:
+  - dartnative
+  - pincode
+  - otp
+
+environment:
+  sdk: ^3.11.0
+
+# `dn pub get` resolves dartnative from the installed SDK.
+dependencies:
+  dartnative: ^1.0.0
+  ffi: ^2.1.0
+  forms_kit:
+    hosted: https://dartpub.dev
+    version: ^0.1.1
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.32.0
+
+# DartNative plugin declaration (docs/plugin_development.md §10/§11):
+# iOS links the Swift sources in ios/ as an FFI plugin; Android registers
+# PinputKitPlugin, which loads libpinput_kit.so so JNI_OnLoad runs. The
+# registrant block makes `dn pub get` emit the loadSymbols() call into the
+# app's lib/dartnative_plugin_registrant.dart.
+dartnative:
+  plugin:
+    platforms:
+      ios:
+        ffiPlugin: true
+      android:
+        package: com.kluivert.pinputkit
+        pluginClass: PinputKitPlugin
+  registrant:
+    imports:
+      - package:pinput_kit/pinput_kit.dart
+    calls:
+      - PinputKitFFIBindings.loadSymbols();
