@@ -40,6 +40,7 @@ export 'src/pin_cursor.dart';
 export 'src/pin_field.dart';
 export 'src/pin_form_field.dart';
 export 'src/pin_parser.dart';
+export 'src/pin_layout.dart' show slotOffsets, slotsRowWidth;
 export 'src/pin_slot.dart';
 export 'src/pin_strategy.dart';
 export 'src/pin_theme.dart';

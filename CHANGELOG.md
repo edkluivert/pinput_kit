@@ -1,3 +1,19 @@
+## 0.2.0
+
+- The focus highlight is now one ring that slides from slot to slot
+  (`animateFocus`, on by default; `focusAnimationDuration`,
+  `focusAnimationCurve`). It is drawn beneath the slots and the focused slot is
+  drawn transparent, so no slot loses its tap. Pass `animateFocus: false` for
+  the previous per-slot border switch; custom `slotBuilder`s are unaffected.
+- Filled slots and a field marked `success` keep the idle look, so only the
+  active slot stands out and a verified code looks the way it did before
+  typing. `PinThemeData.highlightFilled` / `highlightSuccess` restore the
+  `filledColor` / `successColor` outlines.
+- The separator sits in a fixed-width cell (`separatorWidth`, default 16, plus
+  the theme spacing) instead of its intrinsic width, so slot positions are
+  exact for the ring. `slotOffsets` / `slotsRowWidth` are exported for custom
+  layouts.
+
 ## 0.1.1
 
 - Android: the keyboard comes back when a slot is tapped after the system back

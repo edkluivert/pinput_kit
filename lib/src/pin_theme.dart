@@ -91,7 +91,9 @@ class PinThemeData {
   /// Border colour for the currently focused slot.
   final Color focusedColor;
 
-  /// Border colour for a slot that already has a digit.
+  /// Border colour for a slot that already has a digit. Only used when
+  /// [highlightFilled] is true; by default a filled slot keeps the idle look
+  /// ([defaultColor], [fillColor]) so only the active slot stands out.
   final Color filledColor;
 
   /// Border colour when the field is in the error state.
@@ -100,8 +102,16 @@ class PinThemeData {
   /// Border colour when the field is disabled.
   final Color disabledColor;
 
-  /// Border colour for the success state.
+  /// Border colour for the success state. Only used when [highlightSuccess]
+  /// is true; by default a verified field returns to the idle look.
   final Color successColor;
+
+  /// Whether filled slots use [filledColor] instead of the idle look.
+  final bool highlightFilled;
+
+  /// Whether a field marked `success` outlines every slot in [successColor]
+  /// instead of returning to the idle look.
+  final bool highlightSuccess;
 
   // --- Fill colours ---
 
@@ -149,6 +159,8 @@ class PinThemeData {
     required this.focusedBorderWidth,
     required this.textStyle,
     required this.obscureCharacter,
+    this.highlightFilled = false,
+    this.highlightSuccess = false,
   });
 
   /// Apple-flavoured preset: filled rounded rectangles, system grey 6
@@ -227,6 +239,8 @@ class PinThemeData {
     double? focusedBorderWidth,
     TextStyle? textStyle,
     String? obscureCharacter,
+    bool? highlightFilled,
+    bool? highlightSuccess,
   }) => PinThemeData(
     width: width ?? this.width,
     height: height ?? this.height,
@@ -246,6 +260,8 @@ class PinThemeData {
     focusedBorderWidth: focusedBorderWidth ?? this.focusedBorderWidth,
     textStyle: textStyle ?? this.textStyle,
     obscureCharacter: obscureCharacter ?? this.obscureCharacter,
+    highlightFilled: highlightFilled ?? this.highlightFilled,
+    highlightSuccess: highlightSuccess ?? this.highlightSuccess,
   );
 }
 

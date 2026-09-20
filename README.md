@@ -4,6 +4,11 @@ Pin code / OTP input fields for [DartNative](https://dartnative.com), built on
 the native text field, with pluggable code strategies for autofill from SMS,
 push or any other source.
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/edkluivert/pinput_kit/main/doc/demo.gif" width="360" alt="pinput_kit: the focus ring slides from slot to slot while a code is typed, the field is verified, then the underline and passcode presets" />
+</p>
+
+
 ## Why
 
 DartNative ships a native `TextField` and nothing for segmented pin/OTP entry.
@@ -119,17 +124,42 @@ reports "Enter all 6 digits". Pass `validateWhileIncomplete: true` to validate
 on every keystroke instead; `AutovalidateMode.always` validates on every build
 regardless.
 
-### Entry animations and success state
+### Focus ring, entry animations and success state
+
+The active slot is marked by a single ring that slides to the next slot as
+you type (and back on delete), the way the platform's own code fields move.
+Filled slots keep the idle look, and once the code is verified every slot
+returns to it, so the only thing that ever stands out is where the next digit
+goes.
 
 ```dart
 PinField(
   length: 6,
-  animationType: PinAnimationType.scale, // or .fade
+  focusAnimationDuration: const Duration(milliseconds: 220),
+  focusAnimationCurve: Curves.easeOut,
+  animationType: PinAnimationType.scale, // digit entry: .none, .fade, .scale
   animationDuration: const Duration(milliseconds: 160),
   animationCurve: Curves.easeOutBack,
-  success: _verified, // every slot turns PinSlotState.success (green)
+  success: _verified,
 )
 ```
+
+`animateFocus: false` switches back to each slot drawing its own focused
+border. To outline filled or verified slots in their own colour, opt in on the
+theme:
+
+```dart
+PinTheme(
+  data: PinThemeData.platform.copyWith(
+    highlightFilled: true,   // filled slots use filledColor
+    highlightSuccess: true,  // success: _verified outlines slots in successColor
+  ),
+  child: ...,
+)
+```
+
+A `separator` sits in a fixed cell (`separatorWidth`, default 16, plus the
+theme spacing) so the ring lands exactly on each slot.
 
 ### Slot styles: Box, Underline, Circle
 

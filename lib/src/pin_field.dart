@@ -15,6 +15,7 @@ import 'package:dartnative/plugin.dart' show DartNativeReconciler;
 import 'debug.dart';
 import 'native/one_time_code_hint.dart';
 import 'native/pinput_kit_ffi_bindings.dart';
+import 'pin_layout.dart';
 import 'pin_slot.dart';
 import 'pin_theme.dart';
 
@@ -165,6 +166,21 @@ class PinField extends StatefulWidget {
   /// Slot indices after which [separator] is rendered (e.g. `[3]` for `123 — 456`).
   final List<int>? separatorPositions;
 
+  /// Width reserved for [separator]; the separator is centred in it and
+  /// [PinThemeData.spacing] is added on top. Defaults to 16.
+  final double separatorWidth;
+
+  /// Whether the focus highlight is a single ring that slides from slot to
+  /// slot (drawn beneath the slots) instead of each slot switching its own
+  /// border. Defaults to true; ignored when [slotBuilder] is set.
+  final bool animateFocus;
+
+  /// How long the focus ring takes to reach the next slot.
+  final Duration focusAnimationDuration;
+
+  /// Easing of the focus ring movement.
+  final Curve focusAnimationCurve;
+
   /// Whether to dismiss the keyboard automatically when [length] digits are reached.
   final bool closeKeyboardWhenCompleted;
 
@@ -214,6 +230,10 @@ class PinField extends StatefulWidget {
     this.preFilledWidget,
     this.separator,
     this.separatorPositions,
+    this.separatorWidth = 16,
+    this.animateFocus = true,
+    this.focusAnimationDuration = const Duration(milliseconds: 220),
+    this.focusAnimationCurve = Curves.easeOut,
     this.closeKeyboardWhenCompleted = true,
     this.hapticFeedback = true,
     this.mainAxisAlignment = MainAxisAlignment.center,
@@ -478,8 +498,12 @@ class _PinFieldState extends State<PinField> {
     final separatorIndices =
         widget.separatorPositions ??
         (widget.separator != null ? [widget.length ~/ 2] : const <int>[]);
+    final separatorAfter = widget.separator == null
+        ? const <int>{}
+        : separatorIndices.where((i) => i > 0 && i < widget.length).toSet();
 
     final activeIndex = _activeIndex(text);
+    final useRing = widget.animateFocus && widget.slotBuilder == null;
 
     for (int i = 0; i < widget.length; i++) {
       final character = i < text.length ? text[i] : null;
@@ -537,6 +561,7 @@ class _PinFieldState extends State<PinField> {
           animationDuration: widget.animationDuration,
           animationCurve: widget.animationCurve,
           preFilledWidget: widget.preFilledWidget,
+          drawFocus: !useRing,
         );
       }
 
@@ -548,18 +573,20 @@ class _PinFieldState extends State<PinField> {
         ),
       );
 
-      // Add separator if specified.
-      if (widget.separator != null &&
-          separatorIndices.contains(i + 1) &&
-          i < widget.length - 1) {
-        slotWidgets.add(
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: theme.spacing / 2),
-            child: widget.separator!,
-          ),
-        );
-      } else if (i < widget.length - 1) {
-        slotWidgets.add(SizedBox(width: theme.spacing));
+      // Separator cell: a fixed width so slot positions stay computable for
+      // the focus ring (see slotOffsets).
+      if (i < widget.length - 1) {
+        if (separatorAfter.contains(i + 1)) {
+          slotWidgets.add(
+            SizedBox(
+              width: widget.separatorWidth + theme.spacing,
+              height: theme.height,
+              child: Center(child: widget.separator!),
+            ),
+          );
+        } else {
+          slotWidgets.add(SizedBox(width: theme.spacing));
+        }
       }
     }
 
@@ -571,12 +598,51 @@ class _PinFieldState extends State<PinField> {
           LengthLimitingTextInputFormatter(widget.length),
         ];
 
-    // Visible slots row.
+    // Visible slots row, content-sized so the ring offsets below are exact;
+    // the outer Row applies mainAxisAlignment.
     final slotsRow = Row(
-      mainAxisAlignment: widget.mainAxisAlignment,
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: slotWidgets,
     );
+
+    // Focus ring: one highlight that slides to the active slot, in two
+    // layers. The fill slides beneath the slots (the active slot is drawn
+    // transparent, so the digit and cursor stay on top of it) and the border
+    // slides above them, so the ring is visible for the whole move. The top
+    // layer is wrapped in IgnorePointer so it never takes a touch on iOS; on
+    // Android a plain view passes touches through anyway, and the slot
+    // beneath must stay tappable to bring the keyboard back.
+    Widget? ringFill;
+    Widget? ringBorder;
+    if (useRing) {
+      final offsets = slotOffsets(
+        length: widget.length,
+        slotWidth: theme.width,
+        spacing: theme.spacing,
+        separatorAfter: separatorAfter,
+        separatorWidth: widget.separatorWidth,
+      );
+      final ringIndex = activeIndex.clamp(0, widget.length - 1);
+      final ringVisible = isFocused && widget.enabled && !hasError;
+
+      Widget layer(PinFocusRingPart part) => AnimatedPositioned(
+        left: offsets[ringIndex],
+        top: 0,
+        width: theme.width,
+        height: theme.height,
+        duration: widget.focusAnimationDuration,
+        curve: widget.focusAnimationCurve,
+        child: AnimatedOpacity(
+          opacity: ringVisible ? 1.0 : 0.0,
+          duration: const Duration(milliseconds: 120),
+          child: PinFocusRing(theme: theme, part: part),
+        ),
+      );
+
+      ringFill = layer(PinFocusRingPart.fill);
+      ringBorder = IgnorePointer(child: layer(PinFocusRingPart.border));
+    }
 
     // Hidden native TextField that captures keyboard and autofill input.
     // The field is 1x1 behind the slots (listed before the Row, so it is
@@ -611,18 +677,26 @@ class _PinFieldState extends State<PinField> {
       ),
     );
 
+    // The Row is the first non-positioned child, so it sizes the Stack; the
+    // Positioned field and ring before it sit beneath the slots.
+    final stack = Stack(
+      alignment: Alignment.center,
+      children: [
+        hiddenInput,
+        ?ringFill,
+        slotsRow,
+        ?ringBorder,
+      ],
+    );
+
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       // A tap between or beside the slots edits at the end of the pin.
       onTap: () => _handleSlotTap(widget.length),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // The Row is the first non-positioned child, so it sizes the Stack;
-          // the Positioned field before it sits beneath the slots.
-          hiddenInput,
-          slotsRow,
-        ],
+      child: Row(
+        mainAxisAlignment: widget.mainAxisAlignment,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [stack],
       ),
     );
   }

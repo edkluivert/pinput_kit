@@ -11,6 +11,8 @@ import 'package:dartnative/dartnative.dart';
 import 'pin_cursor.dart';
 import 'pin_theme.dart';
 
+const _transparent = Color(0x00000000);
+
 class PinSlot extends StatelessWidget {
   /// The digit character to display, or null when the slot is empty.
   final String? character;
@@ -51,6 +53,12 @@ class PinSlot extends StatelessWidget {
   /// Placeholder widget shown in empty slots (e.g. a dash or dot).
   final Widget? preFilledWidget;
 
+  /// Whether this slot draws its own focus border and fill. `PinField` sets
+  /// this to false when it animates a [PinFocusRing] beneath the slots, in
+  /// which case the focused slot is drawn transparent so the ring shows
+  /// through.
+  final bool drawFocus;
+
   const PinSlot({
     super.key,
     required this.character,
@@ -66,6 +74,7 @@ class PinSlot extends StatelessWidget {
     this.animationDuration = const Duration(milliseconds: 160),
     this.animationCurve = Curves.easeOut,
     this.preFilledWidget,
+    this.drawFocus = true,
   });
 
   @override
@@ -106,38 +115,36 @@ class PinSlot extends StatelessWidget {
   // -----------------------------------------------------------------------
 
   (Color, double, Color) _resolvedBorder() {
-    final Color borderColor;
-    final double borderW;
-    final Color fill;
+    final idle = (theme.defaultColor, theme.borderWidth, theme.fillColor);
+    final filled = theme.highlightFilled
+        ? (theme.filledColor, theme.borderWidth, theme.fillColor)
+        : idle;
 
     switch (state) {
       case PinSlotState.focused:
-        borderColor = theme.focusedColor;
-        borderW = theme.focusedBorderWidth;
-        fill = theme.focusedFillColor;
+        if (!drawFocus) {
+          // The animated ring beneath supplies border and fill.
+          return (_transparent, theme.borderWidth, _transparent);
+        }
+        return (
+          theme.focusedColor,
+          theme.focusedBorderWidth,
+          theme.focusedFillColor,
+        );
       case PinSlotState.filled:
-        borderColor = theme.filledColor;
-        borderW = theme.borderWidth;
-        fill = theme.fillColor;
+        return filled;
       case PinSlotState.error:
-        borderColor = theme.errorColor;
-        borderW = theme.focusedBorderWidth;
-        fill = theme.errorFillColor;
+        return (theme.errorColor, theme.focusedBorderWidth, theme.errorFillColor);
       case PinSlotState.disabled:
-        borderColor = theme.disabledColor;
-        borderW = theme.borderWidth;
-        fill = theme.fillColor;
+        return (theme.disabledColor, theme.borderWidth, theme.fillColor);
       case PinSlotState.success:
-        borderColor = theme.successColor;
-        borderW = theme.focusedBorderWidth;
-        fill = theme.fillColor;
+        if (theme.highlightSuccess) {
+          return (theme.successColor, theme.focusedBorderWidth, theme.fillColor);
+        }
+        return character != null ? filled : idle;
       case PinSlotState.empty:
-        borderColor = theme.defaultColor;
-        borderW = theme.borderWidth;
-        fill = theme.fillColor;
+        return idle;
     }
-
-    return (borderColor, borderW, fill);
   }
 
   BoxDecoration _boxDecoration(Color borderColor, double borderW, Color fill) {
@@ -228,6 +235,96 @@ class PinSlot extends StatelessWidget {
               ),
         ],
       ],
+    );
+  }
+}
+
+/// Which part of the focus highlight a [PinFocusRing] draws.
+enum PinFocusRingPart {
+  /// Border and fill together.
+  full,
+
+  /// Only the fill; `PinField` slides this beneath the slots.
+  fill,
+
+  /// Only the border; `PinField` slides this above the slots so the ring
+  /// stays visible while it moves.
+  border,
+}
+
+/// The focus highlight `PinField` slides from slot to slot: the focused
+/// border and fill of [theme], drawn in the slot's shape.
+class PinFocusRing extends StatelessWidget {
+  final PinThemeData theme;
+
+  /// Border colour; defaults to [PinThemeData.focusedColor].
+  final Color? color;
+
+  /// Which part to draw.
+  final PinFocusRingPart part;
+
+  const PinFocusRing({
+    super.key,
+    required this.theme,
+    this.color,
+    this.part = PinFocusRingPart.full,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final borderColor = part == PinFocusRingPart.fill
+        ? _transparent
+        : (color ?? theme.focusedColor);
+    final fill = part == PinFocusRingPart.border
+        ? _transparent
+        : theme.focusedFillColor;
+    final borderW = theme.focusedBorderWidth;
+    final isUnderline = theme.style == PinSlotStyle.underline;
+
+    // One tree shape for every style: the slot views are reused by index when
+    // the style changes, and a child that exists in one style but not another
+    // would survive the switch (an underline bar showing up under a box). So
+    // the bar is always there and simply transparent for box and circle.
+    final BoxDecoration decoration;
+    switch (theme.style) {
+      case PinSlotStyle.box:
+        decoration = BoxDecoration(
+          color: fill,
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(theme.borderRadius),
+          border: Border.all(color: borderColor, width: borderW),
+        );
+      case PinSlotStyle.circle:
+        final radius =
+            (theme.width < theme.height ? theme.width : theme.height) / 2;
+        decoration = BoxDecoration(
+          color: fill,
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: borderColor, width: borderW),
+        );
+      case PinSlotStyle.underline:
+        decoration = BoxDecoration(
+          color: fill,
+          shape: BoxShape.rectangle,
+          borderRadius: BorderRadius.zero,
+          border: Border.all(color: _transparent, width: 0),
+        );
+    }
+
+    return Container(
+      width: theme.width,
+      height: theme.height,
+      decoration: decoration,
+      child: Column(
+        children: [
+          const Expanded(child: SizedBox()),
+          Container(
+            height: isUnderline ? borderW : 0,
+            color: isUnderline ? borderColor : _transparent,
+          ),
+        ],
+      ),
     );
   }
 }
