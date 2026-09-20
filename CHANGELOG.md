@@ -1,4 +1,4 @@
-## 0.2.1
+## 0.2.2
 
 - `focusAnimation` chooses how the ring reaches the next slot: `slide`
   (default), `pop` (scales in with a small overshoot), `fade`, or `none`.

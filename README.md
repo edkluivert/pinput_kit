@@ -56,7 +56,7 @@ the host:
 dependencies:
   pinput_kit:
     hosted: https://dartpub.dev
-    version: ^0.2.1
+    version: ^0.2.2
 ```
 
 `forms_kit` comes in transitively and is re-exported; no separate dependency
