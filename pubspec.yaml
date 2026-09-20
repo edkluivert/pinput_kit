@@ -4,7 +4,7 @@ description: >-
   slot boxes, box/underline/circle styles, entry animations, forms_kit
   integration, tap-to-edit, SMS Retriever autofill on Android and one-time-code
   keyboard hints on iOS and Android.
-version: 0.2.0
+version: 0.2.1
 repository: https://github.com/edkluivert/pinput_kit
 topics:
   - dartnative

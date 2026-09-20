@@ -39,6 +39,25 @@ enum PinAnimationType {
 }
 
 // ---------------------------------------------------------------------------
+// Focus animation type
+// ---------------------------------------------------------------------------
+
+/// How the focus highlight moves to the next slot.
+enum PinFocusAnimation {
+  /// The ring glides from the previous slot to the next one.
+  slide,
+
+  /// The ring appears at the next slot with a small scale-up and overshoot.
+  pop,
+
+  /// The ring fades in at the next slot.
+  fade,
+
+  /// The ring jumps to the next slot with no transition.
+  none,
+}
+
+// ---------------------------------------------------------------------------
 // Slot state (resolved at render time)
 // ---------------------------------------------------------------------------
 

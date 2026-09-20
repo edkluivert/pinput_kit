@@ -1,3 +1,10 @@
+## 0.2.1
+
+- `focusAnimation` chooses how the ring reaches the next slot: `slide`
+  (default), `pop` (scales in with a small overshoot), `fade`, or `none`.
+- Fix: with an entrance animation, the ring could reappear on the last slot
+  after the code was completed and the keyboard dismissed.
+
 ## 0.2.0
 
 - The focus highlight is now one ring that slides from slot to slot

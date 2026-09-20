@@ -63,7 +63,7 @@ class PinFormField extends FormField<String> {
     super.onSaved,
     super.onReset,
     super.errorBuilder,
-    AutovalidateMode? autovalidateMode,
+    AutovalidateMode? autoValidateMode,
     bool? enabled,
     this.length = 6,
     this.validateWhileIncomplete = false,
@@ -92,6 +92,7 @@ class PinFormField extends FormField<String> {
     List<int>? separatorPositions,
     double separatorWidth = 16,
     bool animateFocus = true,
+    PinFocusAnimation focusAnimation = PinFocusAnimation.slide,
     Duration focusAnimationDuration = const Duration(milliseconds: 220),
     Curve focusAnimationCurve = Curves.easeOut,
     bool closeKeyboardWhenCompleted = true,
@@ -108,7 +109,7 @@ class PinFormField extends FormField<String> {
              ? controller.text
              : (initialValue ?? ''),
          enabled: enabled ?? true,
-         autovalidateMode: autovalidateMode ?? AutovalidateMode.disabled,
+         autovalidateMode: autoValidateMode ?? AutovalidateMode.disabled,
          builder: (FormFieldState<String> field) {
            final state = field as _PinFormFieldState;
            final isEnabled = enabled ?? true;
@@ -153,6 +154,7 @@ class PinFormField extends FormField<String> {
              separatorPositions: separatorPositions,
              separatorWidth: separatorWidth,
              animateFocus: animateFocus,
+             focusAnimation: focusAnimation,
              focusAnimationDuration: focusAnimationDuration,
              focusAnimationCurve: focusAnimationCurve,
              closeKeyboardWhenCompleted: closeKeyboardWhenCompleted,

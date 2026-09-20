@@ -56,7 +56,7 @@ the host:
 dependencies:
   pinput_kit:
     hosted: https://dartpub.dev
-    version: ^0.1.0
+    version: ^0.2.0
 ```
 
 `forms_kit` comes in transitively and is re-exported; no separate dependency
@@ -135,6 +135,7 @@ goes.
 ```dart
 PinField(
   length: 6,
+  focusAnimation: PinFocusAnimation.slide, // or .pop, .fade, .none
   focusAnimationDuration: const Duration(milliseconds: 220),
   focusAnimationCurve: Curves.easeOut,
   animationType: PinAnimationType.scale, // digit entry: .none, .fade, .scale
@@ -144,8 +145,10 @@ PinField(
 )
 ```
 
-`animateFocus: false` switches back to each slot drawing its own focused
-border. To outline filled or verified slots in their own colour, opt in on the
+`focusAnimation` picks how the ring moves: `PinFocusAnimation.slide` (default),
+`pop` (appears at the next slot with a small overshoot), `fade`, or `none`
+(instant jump). `animateFocus: false` switches back to each slot drawing its
+own focused border. To outline filled or verified slots in their own colour, opt in on the
 theme:
 
 ```dart

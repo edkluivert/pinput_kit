@@ -170,15 +170,20 @@ class PinField extends StatefulWidget {
   /// [PinThemeData.spacing] is added on top. Defaults to 16.
   final double separatorWidth;
 
-  /// Whether the focus highlight is a single ring that slides from slot to
-  /// slot (drawn beneath the slots) instead of each slot switching its own
+  /// Whether the focus highlight is a single ring that moves from slot to
+  /// slot (see [focusAnimation]) instead of each slot switching its own
   /// border. Defaults to true; ignored when [slotBuilder] is set.
   final bool animateFocus;
 
-  /// How long the focus ring takes to reach the next slot.
+  /// How the ring moves to the next slot. Defaults to
+  /// [PinFocusAnimation.slide].
+  final PinFocusAnimation focusAnimation;
+
+  /// How long the focus ring transition takes.
   final Duration focusAnimationDuration;
 
-  /// Easing of the focus ring movement.
+  /// Easing of the focus ring transition. [PinFocusAnimation.pop] defaults to
+  /// an overshoot curve when this is left at [Curves.easeOut].
   final Curve focusAnimationCurve;
 
   /// Whether to dismiss the keyboard automatically when [length] digits are reached.
@@ -232,6 +237,7 @@ class PinField extends StatefulWidget {
     this.separatorPositions,
     this.separatorWidth = 16,
     this.animateFocus = true,
+    this.focusAnimation = PinFocusAnimation.slide,
     this.focusAnimationDuration = const Duration(milliseconds: 220),
     this.focusAnimationCurve = Curves.easeOut,
     this.closeKeyboardWhenCompleted = true,
@@ -626,19 +632,46 @@ class _PinFieldState extends State<PinField> {
       final ringIndex = activeIndex.clamp(0, widget.length - 1);
       final ringVisible = isFocused && widget.enabled && !hasError;
 
-      Widget layer(PinFocusRingPart part) => AnimatedPositioned(
-        left: offsets[ringIndex],
-        top: 0,
-        width: theme.width,
-        height: theme.height,
-        duration: widget.focusAnimationDuration,
-        curve: widget.focusAnimationCurve,
-        child: AnimatedOpacity(
-          opacity: ringVisible ? 1.0 : 0.0,
-          duration: const Duration(milliseconds: 120),
+      final left = offsets[ringIndex];
+      final mode = widget.focusAnimation;
+
+      Widget layer(PinFocusRingPart part) {
+        final entrance =
+            mode == PinFocusAnimation.pop || mode == PinFocusAnimation.fade;
+        // One opacity node per layer: visibility and the fade-in entrance are
+        // combined inside _RingEntry, because two AnimatedOpacity widgets on
+        // the same native view both write its alpha and the last one wins.
+        final ring = _RingEntry(
+          // A new widget per slot index, so the entrance plays at each move.
+          key: entrance ? ValueKey('ring-$part-$ringIndex') : null,
+          mode: mode,
+          visible: ringVisible,
+          duration: widget.focusAnimationDuration,
+          curve: mode == PinFocusAnimation.pop &&
+                  widget.focusAnimationCurve == Curves.easeOut
+              ? Curves.easeOutBack
+              : widget.focusAnimationCurve,
           child: PinFocusRing(theme: theme, part: part),
-        ),
-      );
+        );
+        if (mode == PinFocusAnimation.slide) {
+          return AnimatedPositioned(
+            left: left,
+            top: 0,
+            width: theme.width,
+            height: theme.height,
+            duration: widget.focusAnimationDuration,
+            curve: widget.focusAnimationCurve,
+            child: ring,
+          );
+        }
+        return Positioned(
+          left: left,
+          top: 0,
+          width: theme.width,
+          height: theme.height,
+          child: ring,
+        );
+      }
 
       ringFill = layer(PinFocusRingPart.fill);
       ringBorder = IgnorePointer(child: layer(PinFocusRingPart.border));
@@ -699,5 +732,74 @@ class _PinFieldState extends State<PinField> {
         children: [stack],
       ),
     );
+  }
+}
+
+/// Shows or hides the focus ring, and plays its entrance once when it lands
+/// on a new slot: a scale-up with overshoot for [PinFocusAnimation.pop], a
+/// fade for [PinFocusAnimation.fade]. Like `_SlotEntry`, the visible value is
+/// applied one frame after mount so the implicit animation has a change to
+/// drive. Exactly one AnimatedOpacity sits in the tree whatever the mode.
+class _RingEntry extends StatefulWidget {
+  final PinFocusAnimation mode;
+  final bool visible;
+  final Duration duration;
+  final Curve curve;
+  final Widget child;
+
+  const _RingEntry({
+    super.key,
+    required this.mode,
+    required this.visible,
+    required this.duration,
+    required this.curve,
+    required this.child,
+  });
+
+  @override
+  State<_RingEntry> createState() => _RingEntryState();
+}
+
+class _RingEntryState extends State<_RingEntry> {
+  static const _hideDuration = Duration(milliseconds: 120);
+  bool _shown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _shown = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    switch (widget.mode) {
+      case PinFocusAnimation.fade:
+        return AnimatedOpacity(
+          opacity: widget.visible && _shown ? 1.0 : 0.0,
+          duration: widget.visible ? widget.duration : _hideDuration,
+          curve: widget.curve,
+          child: widget.child,
+        );
+      case PinFocusAnimation.pop:
+        return AnimatedOpacity(
+          opacity: widget.visible ? 1.0 : 0.0,
+          duration: _hideDuration,
+          child: AnimatedScale(
+            scale: _shown ? 1.0 : 0.6,
+            duration: widget.duration,
+            curve: widget.curve,
+            child: widget.child,
+          ),
+        );
+      case PinFocusAnimation.slide:
+      case PinFocusAnimation.none:
+        return AnimatedOpacity(
+          opacity: widget.visible ? 1.0 : 0.0,
+          duration: _hideDuration,
+          child: widget.child,
+        );
+    }
   }
 }
